@@ -1,5 +1,10 @@
 # SwarmDB: Massively Parallel Spatial Indexing Engine for Autonomous Systems
 
+## Team Members
+1. Sharvin Mhatre
+2. Archit Jaijith
+3. Saumitrya Chavan
+
 **SwarmDB** is a high-performance spatial database engine conceptualized for the NVIDIA CINECA hackathon. Its primary goal is to manage and query real-time telemetry data for autonomous robotic swarms using GPU acceleration.
 
 This repository currently implements the **CPU Baseline** version of the engine in Python, heavily relying on NumPy's vectorized operations to demonstrate the mathematical logic and the inherent computational bottlenecks. 
