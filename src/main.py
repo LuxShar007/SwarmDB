@@ -1,5 +1,5 @@
 import numpy as np
-from src.kernel import kinetic_join_baseline
+from src.kernel import kinetic_join_baseline, kinetic_join_optimized, kinetic_join_cuda
 
 class RobotSwarm:
     def __init__(self, num_robots: int, bounds: tuple = (0.0, 1000.0)):
@@ -32,14 +32,21 @@ class RobotSwarm:
         # Constrain robots to stay within the simulation bounds
         self.positions = np.clip(self.positions, self.bounds[0], self.bounds[1])
 
-    def find_collisions(self, radius: float) -> np.ndarray:
+    def find_collisions(self, radius: float, method: str = "optimized") -> np.ndarray:
         """
         Performs a 'Kinetic Join' to find all robots within the collision radius.
         
         Args:
             radius: The threshold distance for a collision.
+            method: The engine to use ('baseline' or 'optimized').
             
         Returns:
             An (M, 2) numpy array of robot ID pairs (indices) that are colliding.
         """
-        return kinetic_join_baseline(self.positions, radius)
+        if method == "optimized":
+            return kinetic_join_optimized(self.positions, radius)
+        elif method == "cuda":
+            return kinetic_join_cuda(self.positions, radius)
+        else:
+            return kinetic_join_baseline(self.positions, radius)
+
