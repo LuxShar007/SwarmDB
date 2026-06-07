@@ -69,18 +69,18 @@ We map spatial partitioning grids natively to GPU hardware. Individual coordinat
 
 ## 🚀 Setup & Execution
 
-### 1. System Requirements & Setup
+### System Requirements & Setup
 
 Clone the engine repository and set up the local operational tracking layers:
 ```bash
 pip install -r requirements.txt
-
-2. Run the Multi-Agent State Synchronization Engine
+ Run the Multi-Agent State Synchronization Engine:
 To test the local-first decentralized memory agent workflow loop, run:
 
 Bash
 python agent_swarm_memory.py
-3. Run the Native Performance Benchmarking Suite
+
+ Run the Native Performance Benchmarking Suite:
 To isolate and measure execution metrics across varying swarm densities:
 
 Bash
