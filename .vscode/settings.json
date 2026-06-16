@@ -1,5 +1,7 @@
 {
   "files.associations": {
     "*.cu": "cpp"
-  }
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/swarm_env/Scripts/python.exe"
 }
+

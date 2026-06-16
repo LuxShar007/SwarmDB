@@ -103,7 +103,7 @@ def kinetic_join_cuda(positions: np.ndarray, radius: float) -> np.ndarray:
         
         kernel(
             (grid_size,), (block_size,),
-            (pos_gpu, num_robots, float(radius), collision_count_gpu, collisions_gpu, max_collisions)
+            (pos_gpu, np.int32(num_robots), np.float32(radius), collision_count_gpu, collisions_gpu, np.int32(max_collisions))
         )
         
         count = int(collision_count_gpu[0])
