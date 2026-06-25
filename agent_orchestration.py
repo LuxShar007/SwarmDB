@@ -1,45 +1,40 @@
-import json
 import re
-import numpy as np
+import json
+import asyncio
+from typing import Dict, Any
 
 class SwarmOrchestrator:
-    def __init__(self):
-        print("[*] Initializing Logic & Orchestration Routing Layer...")
-        # In production, this regex structure is handed to Saumitra's SGLang engine
-        self.json_regex = re.compile(r'\{"id":\s*(\d+),\s*"vector":\s*\[([-\d\.]+),\s*([-\d\.]+),\s*([-\d\.]+)\]\}')
+    def __init__(self, agent_configs: Dict[str, Any]):
+        self.agents = agent_configs
+        # Regex capture to grab nested dictionary schema structures
+        self.json_extractor = re.compile(r'\{.*\}', re.DOTALL)
 
-    def parse_field_telemetry(self, raw_log_stream):
-        """
-        Simulates an AI Agent filtering chaotic system messages 
-        into clean, structural coordinate payloads.
-        """
-        match = self.json_regex.search(raw_log_stream)
-        if match:
-            agent_id = int(match.group(1))
-            coord_vector = [float(match.group(2)), float(match.group(3)), float(match.group(4))]
-            return {"status": "SUCCESS", "id": agent_id, "vector": coord_vector}
-        else:
-            return {"status": "MALFORMED_LOG", "id": None, "vector": None}
+    async def parse_agent_response(self, agent_name: str, raw_text: str) -> Dict[str, Any]:
+        match = self.json_extractor.search(raw_text)
+        if not match:
+            return {"status": "fallback", "agent": agent_name, "content": raw_text}
+        
+        cleaned_payload = match.group(0)
+        
+        # Safe Exception Boundary Configuration Implementation
+        try:
+            parsed_data = json.loads(cleaned_payload)
+            return {"status": "success", "agent": agent_name, "data": parsed_data}
+        except (json.JSONDecodeError, TypeError) as e:
+            # Prevent single-thread model loops from crashing if serialization fails
+            return {
+                "status": "parse_error",
+                "agent": agent_name,
+                "error": str(e),
+                "raw_captured": cleaned_payload
+            }
 
-    def aggregate_swarm_batch(self, batch_size=10000):
-        """
-        Gathers structural coordinates from all active agents 
-        to build a unified matrix block for Sharvin's CUDA Kernel.
-        """
-        print(f"[*] Orchestrator gathering tracking states for {batch_size:,} nodes...")
-        # Generates a baseline coordinate matrix block
-        unified_matrix = np.random.uniform(-500, 500, (batch_size, 3)).astype(np.float32)
-        return unified_matrix
+    async def orchestrate_step(self, payload_context: str):
+        # Parallel async non-blocking generation mapping across your swarm tasks
+        tasks = [self.simulate_agent_thought(name) for name in self.agents.keys()]
+        results = await asyncio.gather(*tasks)
+        return results
 
-if __name__ == "__main__":
-    # Test Mock Log from a drone in the field
-    mock_log = "WARN [Sector 4] Unit 1024 reporting bearing shift. JSON: {\"id\": 1024, \"vector\": [142.50, -322.12, 18.75]}"
-    
-    orchestrator = SwarmOrchestrator()
-    parsed_payload = orchestrator.parse_field_telemetry(mock_log)
-    
-    print("\n=== Orchestration Log Parsing Diagnostic ===")
-    print(f"| Input Log Status: {parsed_payload['status']}")
-    print(f"| Extracted ID:     {parsed_payload['id']}")
-    print(f"| Vector Payload:   {parsed_payload['vector']}")
-    print("============================================\n")
+    async def simulate_agent_thought(self, agent_name: str) -> str:
+        await asyncio.sleep(0.1) # Simulate network IO step
+        return f'{{"agent": "{agent_name}", "action": "update_grid", "velocity": 1.25}}'
