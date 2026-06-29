@@ -1,4 +1,11 @@
-import cupy as cp
+import os
+import sys
+
+# Manually register CUDA 12.4 installation paths to fix Windows environment detection errors
+os.environ["CUDA_PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+os.environ["PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin" + os.pathsep + os.environ.get("PATH", "")
+
+import cupy as cp  # type: ignore
 import numpy as np
 import time
 
@@ -55,7 +62,7 @@ def run_accelerated_simulation(N, radius):
     # Allocate a flat tracking array on the GPU
     collision_matrix_gpu = cp.zeros((N * N,), dtype=cp.int32)
     
-    print(f"🚀 Launching custom compiled CUDA C++ kernel across {N*N:,} threads...")
+    print(f"[*] Launching custom compiled CUDA C++ kernel across {N*N:,} threads...")
     start_time = time.time()
     
     # Invoke the kernel hardware grid loop

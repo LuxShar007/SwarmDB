@@ -24,7 +24,7 @@ def test_inference_pipeline():
     # Pointing to the high-speed local inference cluster endpoint
     sg.set_default_backend(sg.RuntimeEndpoint("http://localhost:30000"))
     
-    print("🚀 Launching accelerated prefix-cached inference call...")
+    print("[*] Launching accelerated prefix-cached inference call...")
     start_time = time.time()
     
     state = optimize_telemetry_extraction.run(telemetry_dump=raw_incoming_text)

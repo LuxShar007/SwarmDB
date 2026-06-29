@@ -1,3 +1,10 @@
+import os
+import sys
+
+# Manually register CUDA 12.4 installation paths to fix Windows environment detection errors
+os.environ["CUDA_PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+os.environ["PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin" + os.pathsep + os.environ.get("PATH", "")
+
 import numpy as np
 
 def kinetic_join_baseline(positions: np.ndarray, radius: float) -> np.ndarray:
@@ -88,8 +95,8 @@ def kinetic_join_cuda(positions: np.ndarray, radius: float) -> np.ndarray:
     try:
         import cupy as cp  # type: ignore
         
-        module = cp.RawModule(code=cuda_src)
-        kernel = module.get_function("kinetic_join_shared_mem_kernel")
+        module = cp.RawModule(code=cuda_src, options=("-std=c++11",))
+        kernel = module.get_function("kinetic_join_strided_kernel")
         
         pos_gpu = cp.array(positions.astype(np.float32))
         collision_count_gpu = cp.zeros(1, dtype=np.int32)
@@ -125,7 +132,7 @@ def kinetic_join_cuda(positions: np.ndarray, radius: float) -> np.ndarray:
         from pycuda.compiler import SourceModule  # type: ignore
         
         mod = SourceModule(cuda_src)
-        kernel = mod.get_function("kinetic_join_shared_mem_kernel")
+        kernel = mod.get_function("kinetic_join_strided_kernel")
         
         pos_float32 = positions.astype(np.float32)
         pos_gpu = cuda.mem_alloc(pos_float32.nbytes)

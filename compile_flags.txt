@@ -1,1 +1,2 @@
 -xc++
+-I"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4/include"

@@ -34,15 +34,16 @@ graph TD
     
     B -->|CPU Baseline O N^2| C[Pairwise Distance Matrix]
     C -->|Vectorized NumPy| C1[Compute A^2 + B^2 - 2AB]
-    C1 --> C2[Filter by Collision Radius]
+    C2[Filter by Collision Radius]
+    C1 --> C2
     
     B -->|CPU Optimized O N log N| D[cKDTree Spatial Partitioning]
     D -->|SciPy cKDTree| D1[Query Neighbors within Radius]
     
     B -->|GPU CUDA O N^2 / Block| E[CUDA Spatial Kernels]
     E -->|CuPy Elementwise| E1[Elementwise Kernel]
-    E -->|PyCUDA / CuPy Raw| E2[Shared Memory Block-loading Kernel]
-    E2 --> E3[Store Block Coordinates in shared_pos]
+    E -->|PyCUDA / CuPy Raw| E2[Grid-Stride Loop Kernel]
+    E2 --> E3[kinetic_join_strided_kernel]
     
     C2 --> F[Collision Pairs output]
     D1 --> F
@@ -68,9 +69,9 @@ $$\|\mathbf{a} - \mathbf{b}\|^2 = \|\mathbf{a}\|^2 + \|\mathbf{b}\|^2 - 2(\mathb
 Leverages SciPy's `cKDTree` to index the 3D space, which allows querying coordinate neighbors within a radius without evaluating the global distance matrix.
 
 ### 4. GPU CUDA Acceleration
-The project implements two CUDA execution paths to compile and run GPU kernels:
+The project implements CUDA execution paths to compile and run GPU kernels:
 * **Elementwise Kernel**: Maps thread indices directly to matrix coordinate computations to run in parallel.
-* **Shared Memory Kernel**: Divides the swarm into chunks of `BLOCK_SIZE` (256). Each block loads its coordinates into fast `__shared__` memory on the GPU Streaming Multiprocessor. This dramatically reduces global PCIe memory bandwidth saturation, allowing high performance spatial joins directly on the GPU.
+* **Grid-Stride Loop Kernel (`kinetic_join_strided_kernel`)**: Assigns a global 1D thread sequence across a grid-stride loop. This allows threads to process multiple data elements sequentially and scale dynamically past physical block layout limits, keeping register utilization highly efficient and cutting the upper-triangle calculation workload exactly in half.
 
 ### 5. Decentralized Agent Memory Layer
 Includes a Peer-to-Peer (P2P) database node model (`SwarmDBNode`) where multiple `AutonomousAgent` entities write and read cached states. When an agent updates its local memory node, the node automatically broadcasts the sync update across the cluster. This allows agents to share parameters and bypass redundant computation loops.
@@ -145,12 +146,13 @@ python agent_swarm_memory.py
 ---
 
 ## 📊 Expected Benchmark Performance
-Depending on your hardware setup, running `benchmark.py` will demonstrate the extreme speedup achieved by the spatial optimizations and CUDA GPU engines:
+Depending on your hardware setup, running `benchmark.py` will demonstrate the extreme speedup achieved by the spatial optimizations and CUDA GPU engines (benchmarked on an NVIDIA GeForce RTX 3050 Laptop GPU):
 
-| Swarm Size (N) | CPU Baseline $O(N^2)$ | CPU Optimized $O(N \log N)$ | GPU CUDA (Shared Mem) |
+| Swarm Size (N) | CPU Baseline $O(N^2)$ | CPU Optimized $O(N \log N)$ | GPU CUDA (Grid-Stride) |
 |---|---|---|---|
-| **1,000** | ~0.008 s | ~0.001 s | ~0.001 s |
-| **5,000** | ~0.150 s | ~0.003 s | ~0.002 s |
-| **10,000** | ~0.700 s | ~0.007 s | ~0.003 s |
-| **25,000** | 💥 *High Overhead* | ~0.022 s | ~0.007 s |
-| **50,000** | 💥 *OOM Crash* | ~0.048 s | ~0.012 s |
+| **1,000** | ~0.040 s | ~2.198 s (init/tree build) | ~1.977 s (warmup JIT) |
+| **2,500** | ~0.163 s | ~0.001 s | ~0.001 s |
+| **5,000** | ~0.734 s | ~0.003 s | ~0.001 s |
+| **10,000** | ~5.450 s | ~0.007 s | ~0.003 s |
+| **25,000** | 💥 *High Overhead* | ~0.019 s | ~0.005 s |
+| **50,000** | 💥 *OOM / Memory Crash* | ~0.044 s | ~0.013 s |

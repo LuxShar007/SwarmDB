@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-xc++]
+  Add: [-xc++, "-IC:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4/include"]
