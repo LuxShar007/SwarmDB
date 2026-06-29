@@ -1,7 +1,7 @@
 import os
 import time
-import chromadb  # type: ignore
-from chromadb.config import Settings  # type: ignore
+import json
+import chromadb
 from typing import Dict, Any, List, Optional
 
 class SwarmDBNode:
@@ -9,11 +9,10 @@ class SwarmDBNode:
         self.node_id = node_id
         self.cluster_peers: List['SwarmDBNode'] = []
         
-        # Initialize a true persistent vector database directory layout
+        # Build a persistent directory context path on disk
         self.db_path = os.path.join(os.getcwd(), "swarm_db_vault", self.node_id)
         self.chroma_client = chromadb.PersistentClient(path=self.db_path)
         
-        # Isolate a structural collection instance for this specific node
         self.collection = self.chroma_client.get_or_create_collection(
             name=f"swarm_memory_{node_id.lower()}"
         )
@@ -24,13 +23,9 @@ class SwarmDBNode:
             peer_node.cluster_peers.append(self)
 
     def write_state(self, key: str, value: str, broadcast: bool = True):
-        """
-        Saves unstructured state data along with automatic unique document 
-        vector mappings, then handles decentralized peer replication blocks.
-        """
         timestamp_str = str(time.time())
         
-        # Write to persistent local vector space indices
+        # Commit vector metadata frames to persistent local storage segments
         self.collection.upsert(
             ids=[key],
             documents=[value],
@@ -43,16 +38,14 @@ class SwarmDBNode:
                 peer.receive_sync(key, value, self.node_id)
 
     def receive_sync(self, key: str, value: str, origin_id: str):
-        """ Decentralized sync listener mapping network metadata """
         self.collection.upsert(
             ids=[key],
             documents=[value],
             metadatas=[{"origin_node": origin_id, "timestamp": str(time.time())}]
         )
-        print(f"⚡ [SwarmDB-{self.node_id}] Synchronized Vector state from Peer '{origin_id}' for key: '{key}'")
+        print(f"⚡ [SwarmDB-{self.node_id}] Sync from Peer '{origin_id}' locked for: '{key}'")
 
     def read_state(self, key: str) -> Optional[str]:
-        """ Direct lookup via document primary tracking key identifiers """
         try:
             result = self.collection.get(ids=[key])
             if result and result['documents']:
@@ -62,10 +55,7 @@ class SwarmDBNode:
             return None
 
     def query_semantic_memory(self, prompt_query: str, n_results: int = 1) -> List[str]:
-        """
-        Executes a true mathematical vector similarity search. This returns past 
-        context vectors whose embeddings align nearest to the active agent query.
-        """
+        """ Executes similarity matching vectors against previous historical text states """
         try:
             results = self.collection.query(
                 query_texts=[prompt_query],
@@ -73,5 +63,4 @@ class SwarmDBNode:
             )
             return results['documents'][0] if results['documents'] else []
         except Exception as e:
-            print(f"❌ Semantic query bottleneck hit: {str(e)}")
             return []
