@@ -1,97 +1,77 @@
-import json
+import os
 import time
-from typing import Dict, Any, List
+import chromadb  # type: ignore
+from chromadb.config import Settings  # type: ignore
+from typing import Dict, Any, List, Optional
 
-# Simulating the core distributed node logic of your SwarmDB repository
 class SwarmDBNode:
     def __init__(self, node_id: str):
         self.node_id = node_id
-        self.local_memory_vault: Dict[str, Any] = {}
         self.cluster_peers: List['SwarmDBNode'] = []
+        
+        # Initialize a true persistent vector database directory layout
+        self.db_path = os.path.join(os.getcwd(), "swarm_db_vault", self.node_id)
+        self.chroma_client = chromadb.PersistentClient(path=self.db_path)
+        
+        # Isolate a structural collection instance for this specific node
+        self.collection = self.chroma_client.get_or_create_collection(
+            name=f"swarm_memory_{node_id.lower()}"
+        )
 
     def connect_peer(self, peer_node: 'SwarmDBNode'):
         if peer_node not in self.cluster_peers:
             self.cluster_peers.append(peer_node)
             peer_node.cluster_peers.append(self)
 
-    def write_state(self, key: str, value: Any, broadcast: bool = True):
-        """ Writes state locally and handles decentralized synchronization across the swarm """
-        self.local_memory_vault[key] = {
-            "value": value,
-            "timestamp": time.time(),
-            "origin_node": self.node_id
-        }
-        print(f"🔒 [SwarmDB-{self.node_id}] State Written: '{key}' -> {value}")
+    def write_state(self, key: str, value: str, broadcast: bool = True):
+        """
+        Saves unstructured state data along with automatic unique document 
+        vector mappings, then handles decentralized peer replication blocks.
+        """
+        timestamp_str = str(time.time())
+        
+        # Write to persistent local vector space indices
+        self.collection.upsert(
+            ids=[key],
+            documents=[value],
+            metadatas=[{"origin_node": self.node_id, "timestamp": timestamp_str}]
+        )
+        print(f"🔒 [SwarmDB-VectorVault-{self.node_id}] State Written: '{key}'")
         
         if broadcast:
             for peer in self.cluster_peers:
                 peer.receive_sync(key, value, self.node_id)
 
-    def receive_sync(self, key: str, value: Any, origin_id: str):
-        """ Network synchronization layer matching SwarmDB architecture """
-        self.local_memory_vault[key] = {
-            "value": value,
-            "timestamp": time.time(),
-            "origin_node": origin_id
-        }
-        print(f"⚡ [SwarmDB-{self.node_id}] Synchronized state from Peer '{origin_id}' for key: '{key}'")
+    def receive_sync(self, key: str, value: str, origin_id: str):
+        """ Decentralized sync listener mapping network metadata """
+        self.collection.upsert(
+            ids=[key],
+            documents=[value],
+            metadatas=[{"origin_node": origin_id, "timestamp": str(time.time())}]
+        )
+        print(f"⚡ [SwarmDB-{self.node_id}] Synchronized Vector state from Peer '{origin_id}' for key: '{key}'")
 
-    def read_state(self, key: str) -> Any:
-        state_entry = self.local_memory_vault.get(key)
-        return state_entry["value"] if state_entry else None
+    def read_state(self, key: str) -> Optional[str]:
+        """ Direct lookup via document primary tracking key identifiers """
+        try:
+            result = self.collection.get(ids=[key])
+            if result and result['documents']:
+                return result['documents'][0]
+            return None
+        except Exception:
+            return None
 
-
-# Track A Agent Framework Layer
-class AutonomousAgent:
-    def __init__(self, name: str, role: str, db_node: SwarmDBNode):
-        self.name = name
-        self.role = role
-        self.memory_engine = db_node  # Under-the-hood SwarmDB integration
-
-    def execute_task(self, task_description: str, input_context_key: str = None):
-        print(f"\n🤖 Agent [{self.name}] ({self.role}) starting task: '{task_description}'")
-        
-        # Check if another agent has already cached critical parameters in SwarmDB
-        if input_context_key:
-            shared_context = self.memory_engine.read_state(input_context_key)
-            if shared_context:
-                print(f"💡 [{self.name}] Found pre-cached context in SwarmDB! Avoiding redundant LLM processing steps.")
-                print(f"   Context Data: {shared_context}")
-                return f"Processed successfully using shared memory: {shared_context}"
-        
-        # Simulating an LLM engine or Tool Execution output
-        simulated_output = f"Optimized BOM Result for {task_description}"
-        
-        # Instantly update SwarmDB so all other agents receive the state update immediately
-        output_key = f"result_{task_description.lower().replace(' ', '_')}"
-        self.memory_engine.write_state(output_key, {"status": "Verified", "data": simulated_output})
-        return simulated_output
-
-
-# --- Execution Pipeline Simulation ---
-if __name__ == "__main__":
-    print("=====================================================================")
-    print("⚡ DEMONSTRATING SWARMDB-AGENTIC DECENTRALIZED MEMORY INTERFACE ⚡")
-    print("=====================================================================\n")
-
-    # 1. Spin up independent database nodes acting as agent memory layers
-    extractor_db = SwarmDBNode(node_id="ExtractorNode")
-    scout_db = SwarmDBNode(node_id="ScoutNode")
-    
-    # Establish decentralized synchronization topology (connecting your peers)
-    extractor_db.connect_peer(scout_db)
-
-    # 2. Instantiate Track A Agents bound to individual SwarmDB memory nodes
-    agent_extractor = AutonomousAgent(name="SchematicParser", role="Data Extraction", db_node=extractor_db)
-    agent_scout = AutonomousAgent(name="InventoryScout", role="Logistics Tracking", db_node=scout_db)
-
-    # 3. Step 1 of Workflow: Agent 1 extracts metrics and writes to its local DB node
-    agent_extractor.execute_task(task_description="Parse Controller IC-74HC04")
-
-    # 4. Step 2 of Workflow: Agent 2 automatically accesses the synchronized global state
-    # Notice that agent_scout checks its own database instance ('scout_db') and gets the data
-    # that was compiled by agent_extractor onto 'extractor_db' without redundant network loops!
-    agent_scout.execute_task(
-        task_description="Check live stock levels", 
-        input_context_key="result_parse_controller_ic-74hc04"
-    )
+    def query_semantic_memory(self, prompt_query: str, n_results: int = 1) -> List[str]:
+        """
+        Executes a true mathematical vector similarity search. This returns past 
+        context vectors whose embeddings align nearest to the active agent query.
+        """
+        try:
+            results = self.collection.query(
+                query_texts=[prompt_query],
+                n_results=n_results
+            )
+            return results['documents'][0] if results['documents'] else []
+        except Exception as e:
+            print(f"❌ Semantic query bottleneck hit: {str(e)}")
+            return []

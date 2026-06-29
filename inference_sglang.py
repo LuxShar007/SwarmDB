@@ -1,4 +1,4 @@
-import sglang as sg
+import sglang as sg  # type: ignore
 import time
 
 # Define a high-speed structured generation graph
